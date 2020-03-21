@@ -430,10 +430,10 @@ class GFBlueshift extends GFFeedAddOn {
         $styles = array(
             array(
                 'handle'  => 'gform_blueshift_form_settings_css',
-                'src'     => $this->get_base_url() . "/css/form_settings{$min}.css",
+                'src'     => $this->get_base_url() . "/css/admin-segment-settings.css",
                 'version' => $this->_version,
                 'enqueue' => array(
-                    array( 'admin_page' => array( 'form_settings' ) ),
+                    array( 'admin_page' => array( 'plugin_settings' ) ),
                 ),
             ),
         );
@@ -442,13 +442,31 @@ class GFBlueshift extends GFFeedAddOn {
 
     }
 
+    public function scripts() {
+        $scripts = array(
+            array(
+                'handle'    => 'admin_segment_settings',
+                'src'       => $this->get_base_url() . '/js/admin-segment-settings.js',
+                'version'   => $this->_version,
+                'deps'      => array( 'jquery' ),
+                'in_footer' => false,
+                'enqueue'   => array(
+                    array(
+                        'admin_page' => array( 'plugin_settings' ),
+                    )
+                )
+            ),
+        );
+
+        return array_merge( parent::scripts(), $scripts );
+    }
+
     /**
      * Configures the settings which should be rendered on the add-on settings tab.
      *
      * @return array
      */
     public function plugin_settings_fields() {
-
         return array(
             array(
                 'title'       => 'Blueshift API Settings',
@@ -478,8 +496,37 @@ class GFBlueshift extends GFFeedAddOn {
                     ),
                 ),
             ),
+            array(
+                'title'       => 'Blueshift Segment Settings',
+                'description' => 'Add in segment uuids to be used in the Blueshift form feed',
+                'fields'      => array(
+                    array(
+                        //add in a callback to validate the strings
+                        'type'  => 'blueshift_segment_map_field_type',
+                        'name'  => 'blueshift_segment_map'
+                    ),
+                    array(
+                        'type'     => 'save',
+                        'messages' => array(
+                            'success' => esc_html__( 'Blueshift settings have been updated.', 'gravityformsblueshift' )
+                        ),
+                    ),
+                ),
+            )
         );
 
+    }
+
+    /**
+     * Get the dynamic segment settings and admin form
+     */
+    public function settings_blueshift_segment_map_field_type(){
+        $segment_settings = $this->get_plugin_setting('blueshift_segment_map');
+
+        if (!$segment_settings) {
+            $segment_settings = array();
+        }
+        include('views/admin-segment-settings.php');
     }
 
     /**
@@ -980,12 +1027,8 @@ class GFBlueshift extends GFFeedAddOn {
             return $lists;
         }
 
-        /* Get available Blueshift lists. */
-        //$mc_lists = $this->api->get_all_lists_by_orgid();
-        $blueshift_lists = array(array(
-            'name' => 'Test Segment',
-            'segmentid' => 'ebc7c8cc-abf2-4729-aa40-f23e193284f7'
-        ));
+        /* Get available Blueshift segments. */
+        $blueshift_lists = $this->get_plugin_setting('blueshift_segment_map');
         /* Add Blueshift lists to array and return it. */
         foreach ( $blueshift_lists as $list ) {
 
@@ -1088,12 +1131,8 @@ class GFBlueshift extends GFFeedAddOn {
         $list_id      = rgpost( '_gaddon_setting_mailingSegment' ) ? rgpost( '_gaddon_setting_mailingSegment' ) : $current_feed['meta']['mailingSegment'];
         // Log the list ID obtained from the Mailing List settings
         $this->log_debug(__METHOD__.'(): $list_id from savings submit: ' . print_r($list_id, true));
-        // Get all lists for current Org ID from Blueshift
-        //$mc_lists = $this->api->get_all_lists_by_orgid();
-        $blueshift_segments = array(array(
-            'name' => 'Test Segment',
-            'segmentid' => 'ebc7c8cc-abf2-4729-aa40-f23e193284f7'
-        ));
+        // Get all segments from Blueshift settings
+        $blueshift_segments = $this->get_plugin_setting('blueshift_segment_map');
         // Add Blueshift lists to array.
         foreach ($blueshift_segments as $segment) {
             // Find the list that matches the current Mailing List setting
