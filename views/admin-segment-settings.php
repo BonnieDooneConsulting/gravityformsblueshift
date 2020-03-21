@@ -18,9 +18,9 @@
                 <?php
                 $this->settings_text(
                     array(
-                    'label'         => 'Segment Name',
-                    'name'          => "blueshift_segment_map[$index][name]",
-                    'default_value' => 'Segment Name'
+                        'label'         => 'Segment Name',
+                        'name'          => "blueshift_segment_map[$index][name]",
+                        'default_value' => 'Segment Name',
                     )
                 );
                 $this->settings_text(
@@ -28,7 +28,7 @@
                         'label'         => 'Segment uuid',
                         'name'          => "blueshift_segment_map[$index][segmentid]",
                         'class'         => 'medium',
-                        'default_value' => 'Segment uuid'
+                        'default_value' => 'Segment uuid',
                     )
                 );
                 ?>

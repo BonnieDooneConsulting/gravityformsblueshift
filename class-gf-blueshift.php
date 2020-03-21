@@ -502,8 +502,8 @@ class GFBlueshift extends GFFeedAddOn {
                 'fields'      => array(
                     array(
                         //add in a callback to validate the strings
-                        'type'  => 'blueshift_segment_map_field_type',
-                        'name'  => 'blueshift_segment_map'
+                        'type'              => 'blueshift_segment_map_field_type',
+                        'name'              => 'blueshift_segment_map'
                     ),
                     array(
                         'type'     => 'save',
@@ -514,7 +514,6 @@ class GFBlueshift extends GFFeedAddOn {
                 ),
             )
         );
-
     }
 
     /**
@@ -1028,13 +1027,13 @@ class GFBlueshift extends GFFeedAddOn {
         }
 
         /* Get available Blueshift segments. */
-        $blueshift_lists = $this->get_plugin_setting('blueshift_segment_map');
+        $blueshift_segments = $this->get_plugin_setting('blueshift_segment_map');
         /* Add Blueshift lists to array and return it. */
-        foreach ( $blueshift_lists as $list ) {
+        foreach ( $blueshift_segments as $segment ) {
 
             $segments[] = array(
-                'label' => $list['name'],
-                'value' => $list['segmentid']
+                'label' => $segment['name'],
+                'value' => $segment['segmentid']
             );
 
         }
