@@ -198,20 +198,18 @@ class GFBlueshift extends GFFeedAddOn {
         }
 
         // Assemble the email content from the entry values and feed settings
-        $content_id = $this->create_content($feed, $entry, $form);
+        $template_uuid = $this->create_or_update_content($feed, $entry, $form);
 
-        if (is_numeric($content_id)) {
-            gform_update_meta($entry['id'], 'blueshiftaddon_content_id', $content_id);
-            $entry['blueshiftaddon_content_id'] = $content_id;
+        if (is_numeric($template_uuid)) {
+            gform_update_meta($entry['id'], 'blueshiftaddon_content_id', $template_uuid);
+            $entry['blueshiftaddon_content_id'] = $template_uuid;
         }
 
         // Associate the new content with the current list
-        $content_is_associated = $this->associate_content_with_list($content_id, $feed);
+        //$content_is_associated = $this->associate_content_with_list($template_uuid, $feed);
 
         // Create a new mailing from the new content
-        if ($content_is_associated) {
-            $mailing_id = $this->create_mailing($content_id, $feed, $entry, $form);
-        }
+            $mailing_id = $this->create_mailing($template_uuid, $feed, $entry, $form);
 
         // Associate the new mailing with the current list
         if (isset($mailing_id) && is_numeric($mailing_id)) {
@@ -229,12 +227,12 @@ class GFBlueshift extends GFFeedAddOn {
         if (is_object($mailing)) {
 
             // Set the Send Date on the new mailing
-            $mailing = $this->set_mailing_send_date($mailing, $feed);
+            //$mailing = $this->set_mailing_send_date($mailing, $feed);
 
             // Approve the mailing to be sent at the Send Date
-            $mailing = $this->set_mailing_approved_state($mailing, $feed, $content_id);
+            //$mailing = $this->set_mailing_approved_state($mailing, $feed, $content_id);
 
-            $mailing_id = $this->api->put_update_mailing($mailing)->mid;
+            //$mailing_id = $this->api->put_update_mailing($mailing)->mid;
 
         }
 
@@ -251,27 +249,42 @@ class GFBlueshift extends GFFeedAddOn {
         }
     }
 
-    public function create_content($feed, $entry, $form) {
+    public function create_or_update_content($feed, $entry, $form) {
         // Get settings for content from feed settings and entry
         $content_html = $this->get_filtered_field_value('contentBody',$feed, $entry, $form);
         $content_html = $this->get_html_body($content_html, $feed, $entry, $form);
         $content_plaintext = $this->get_filtered_field_value('contentPlaintextBody', $feed, $entry, $form);
-        $content_name = $this->get_filtered_field_value('contentName',$feed, $entry, $form);
+        $template_name = $this->get_filtered_field_value('contentName',$feed, $entry, $form);
         $content_description = $this->get_filtered_field_value('contentDescription', $feed, $entry, $form);
         $subject = $this->get_filtered_field_value('subjectLine',$feed, $entry, $form);
         $from = $this->get_filtered_field_value('fromName',$feed, $entry, $form);
         $from_address = $this->get_filtered_field_value('fromAddress',$feed, $entry, $form);
         $to = $this->get_filtered_field_value('toName', $feed, $entry, $form );
-        $headers = array(
-            "To:".$to,
-            "From:".$from." <".$from_address.">",
-            "Subject:".$subject,
-            "Reply-To: "
-        );
-        $content_id = $this->api->put_create_content($content_html, $content_plaintext, $content_name, $content_description, $headers)->cid;
 
-        if(is_numeric($content_id)) {
-            return $content_id;
+        //create or update the blueshift template
+        //$content_id = $this->api->put_create_content($content_html, $content_plaintext, $content_name, $content_description, $headers)->cid;
+        $template_uuid = $this->api->create_email_template($template_name, $subject, $content_html);
+
+        if($template_uuid) {
+            return $template_uuid;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @param $template_uuid
+     * @param $feed
+     * @param $entry
+     * @param $form
+     * @return bool
+     */
+    public function create_mailing($template_uuid, $feed, $entry, $form) {
+        $mailing_name = $this->get_filtered_field_value('mailingName',$feed, $entry, $form);
+        //update this to create a blueshift campaign
+        $mailing_id = $this->api->create_campaign($mailing_name, $template_uuid, $feed['meta']['campaignType'], $feed['meta']['mailingType'], $feed['meta']['coreTarget'])->mid;
+        if(is_numeric($mailing_id)) {
+            return $mailing_id;
         } else {
             return false;
         }
@@ -673,7 +686,7 @@ class GFBlueshift extends GFFeedAddOn {
     public function feed_list_columns() {
         return array(
             'feed_name' => esc_html__( 'Name', 'gravityformsblueshift' ),
-            'mailingSegment'      => esc_html__( 'Blueshift List', 'gravityformsblueshift' ),
+            'mailingSegment'      => esc_html__( 'Blueshift Segment', 'gravityformsblueshift' ),
         );
     }
 
@@ -1014,17 +1027,12 @@ class GFBlueshift extends GFFeedAddOn {
      */
     public function lists_for_feed_setting() {
 
-        $lists = array(
+        $segments = array(
             array(
                 'label' => esc_html__( 'Select a Segement', 'gravityformsblueshift' ),
                 'value' => ''
             )
         );
-
-        /* If Blueshift API credentials are invalid, return the lists array. */
-        if ( ! $this->initialize_api() ) {
-            return $lists;
-        }
 
         /* Get available Blueshift segments. */
         $blueshift_segments = $this->get_plugin_setting('blueshift_segment_map');
