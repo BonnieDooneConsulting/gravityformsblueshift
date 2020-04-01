@@ -58,12 +58,21 @@ class GF_Blueshift_API {
      * Use this API to get the list of email templates
      *
      * @see https://developer.blueshift.com/reference#email-template
-     * @param $template_params
+     * @param $name
+     * @param $subject
+     * @param $content
      * @return array|mixed|WP_Error
      */
-    function create_email_template($template_params) {
+    function create_email_template($name, $subject, $content) {
         $url = $this->api_url . '/email_templates.json';
-        return $this->_post($url, $template_params);
+        $template_parameters = array(
+            'name' => $name,
+            'resource' => [
+                'subject' => $subject,
+                'content' => $content
+            ]
+        );
+        $this->_post($url, $template_parameters);
     }
 
     /**
