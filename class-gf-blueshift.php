@@ -198,68 +198,53 @@ class GFBlueshift extends GFFeedAddOn {
         }
 
         // Assemble the email content from the entry values and feed settings
-        $template_uuid = $this->create_or_update_content($feed, $entry, $form);
+        $template_uuid = $this->create_or_update_template($feed, $entry, $form);
 
         if (is_numeric($template_uuid)) {
             gform_update_meta($entry['id'], 'blueshiftaddon_content_id', $template_uuid);
             $entry['blueshiftaddon_content_id'] = $template_uuid;
         }
 
-        // Associate the new content with the current list
-        //$content_is_associated = $this->associate_content_with_list($template_uuid, $feed);
-
         // Create a new mailing from the new content
-            $mailing_id = $this->create_mailing($template_uuid, $feed, $entry, $form);
+        $campaign_id = $this->create_mailing_campaign($template_uuid, $feed, $entry, $form);
 
         // Associate the new mailing with the current list
-        if (isset($mailing_id) && is_numeric($mailing_id)) {
-
-            gform_update_meta($entry['id'], 'blueshiftaddon_mailing_id', $mailing_id);
-            $entry['blueshiftaddon_mailing_id'] = $mailing_id;
-
-            $mailing_is_associated = $this->associate_mailing_with_list($mailing_id, $feed);
-
-            // Get the mail object from Blueshift
-            if ($mailing_is_associated) $mailing = $this->get_mailing($mailing_id);
-
+        if (isset($campaign_id) && is_numeric($campaign_id)) {
+            gform_update_meta($entry['id'], 'blueshiftaddon_mailing_id', $campaign_id);
+            $entry['blueshiftaddon_mailing_id'] = $campaign_id;
         }
 
-        if (is_object($mailing)) {
-
-            // Set the Send Date on the new mailing
-            //$mailing = $this->set_mailing_send_date($mailing, $feed);
-
-            // Approve the mailing to be sent at the Send Date
-            //$mailing = $this->set_mailing_approved_state($mailing, $feed, $content_id);
-
-            //$mailing_id = $this->api->put_update_mailing($mailing)->mid;
-
+        //send the mailing
+        if ($campaign_id) {
+            $mailing = $this->api->trigger_campaign(array('campaign_uuid' => $campaign_id));
         }
 
         GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($mailing, true));
 
-        if (is_numeric($mailing_id)) {
-
+        if (is_numeric($campaign_id)) {
             return true;
-
         } else {
-
             return false;
-
         }
     }
 
-    public function create_or_update_content($feed, $entry, $form) {
+    /**
+     * @param $feed
+     * @param $entry
+     * @param $form
+     * @return bool
+     */
+    public function create_or_update_template($feed, $entry, $form) {
         // Get settings for content from feed settings and entry
         $content_html = $this->get_filtered_field_value('contentBody',$feed, $entry, $form);
         $content_html = $this->get_html_body($content_html, $feed, $entry, $form);
-        $content_plaintext = $this->get_filtered_field_value('contentPlaintextBody', $feed, $entry, $form);
+        //$content_plaintext = $this->get_filtered_field_value('contentPlaintextBody', $feed, $entry, $form);
         $template_name = $this->get_filtered_field_value('contentName',$feed, $entry, $form);
-        $content_description = $this->get_filtered_field_value('contentDescription', $feed, $entry, $form);
+        //$content_description = $this->get_filtered_field_value('contentDescription', $feed, $entry, $form);
         $subject = $this->get_filtered_field_value('subjectLine',$feed, $entry, $form);
-        $from = $this->get_filtered_field_value('fromName',$feed, $entry, $form);
-        $from_address = $this->get_filtered_field_value('fromAddress',$feed, $entry, $form);
-        $to = $this->get_filtered_field_value('toName', $feed, $entry, $form );
+        //$from = $this->get_filtered_field_value('fromName',$feed, $entry, $form);
+        //$from_address = $this->get_filtered_field_value('fromAddress',$feed, $entry, $form);
+        //$to = $this->get_filtered_field_value('toName', $feed, $entry, $form );
 
         //create or update the blueshift template
         //$content_id = $this->api->put_create_content($content_html, $content_plaintext, $content_name, $content_description, $headers)->cid;
@@ -273,16 +258,29 @@ class GFBlueshift extends GFFeedAddOn {
     }
 
     /**
+     * Create a campaign and attribute the template to it
+     *
      * @param $template_uuid
      * @param $feed
      * @param $entry
      * @param $form
      * @return bool
      */
-    public function create_mailing($template_uuid, $feed, $entry, $form) {
+    public function create_mailing_campaign($template_uuid, $feed, $entry, $form) {
         $mailing_name = $this->get_filtered_field_value('mailingName',$feed, $entry, $form);
+
+        $campaign_params = array(
+            'name' => $mailing_name,
+            'startdate' => date('c'),
+            'segment_uuid' => $feed['meta']['mailingSegment'],
+            'triggers' => array(
+                'template_uuid' => $template_uuid
+            )
+        );
+
         //update this to create a blueshift campaign
-        $mailing_id = $this->api->create_campaign($mailing_name, $template_uuid, $feed['meta']['campaignType'], $feed['meta']['mailingType'], $feed['meta']['coreTarget'])->mid;
+        $mailing_id = $this->api->create_campaign($campaign_params);
+
         if(is_numeric($mailing_id)) {
             return $mailing_id;
         } else {
@@ -290,6 +288,13 @@ class GFBlueshift extends GFFeedAddOn {
         }
     }
 
+    /**
+     * @param $content_html
+     * @param $feed
+     * @param $entry
+     * @param $form
+     * @return mixed
+     */
     public function get_html_body($content_html, $feed, $entry, $form) {
         // Return unaltered $content_html if no template is selected
         if(rgblank($feed['meta']['contentTemplate'])) {
@@ -309,6 +314,13 @@ class GFBlueshift extends GFFeedAddOn {
         }
     }
 
+    /**
+     * @param $name
+     * @param $feed
+     * @param $entry
+     * @param $form
+     * @return string
+     */
     public function get_filtered_field_value($name, $feed, $entry, $form ) {
         return do_shortcode(GFCommon::replace_variables( $feed['meta'][$name], $form, $entry, false, false, false, 'text' ));
     }
@@ -323,6 +335,12 @@ class GFBlueshift extends GFFeedAddOn {
         add_filter( 'gform_entry_detail_meta_boxes', array( $this, 'register_meta_box' ), 10, 3 );
     }
 
+    /**
+     * Get entry meta from the
+     * @param array $entry_meta
+     * @param int $form_id
+     * @return array
+     */
     public function get_entry_meta( $entry_meta, $form_id ) {
         $entry_meta['blueshiftaddon_content_id']   = array(
             'label'                      => 'Blueshift Content ID',
@@ -728,11 +746,8 @@ class GFBlueshift extends GFFeedAddOn {
                 ),
             ),
         );
-
         $create_post_fields = $this->feed_settings_fields_create_post();
-
         return array_merge( $base_fields, $create_post_fields, $conditional_fields );
-
     }
 
     /**
@@ -797,18 +812,6 @@ class GFBlueshift extends GFFeedAddOn {
                             esc_html__( 'Mailing List', 'gravityformsblueshift' ),
                             esc_html__( 'Select one of the defined Blueshift lists for the mailing.', 'gravityformsblueshift' )
                         ),
-                    ),
-                    array(
-                        'name'     => 'coreTarget',
-                        'label'    => esc_html__( 'Core Target', 'gravityformsblueshift' ),
-                        'type'     => 'select',
-                        'dependency' => 'mailingSegment',
-                        'choices'  => $this->targets_for_feed_setting(),
-                        'tooltip'  => sprintf(
-                            '<h6>%s</h6>%s',
-                            esc_html__( 'Core Target', 'gravityformsblueshift' ),
-                            esc_html__( 'Select one of the defined Blueshift core targets for the mailing.', 'gravityformsblueshift' )
-                        ),
                     )
                 ),
             ),
@@ -829,32 +832,32 @@ class GFBlueshift extends GFFeedAddOn {
                         'required'      => true,
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
-                    array(
-                        'name'          => 'toName',
-                        'label'         => esc_html__( 'To', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'medium',
-                        'default_value' => '[%= :prettyTo %]'
-                    ),
-                    array(
-                        'name'          => 'fromName',
-                        'label'         => esc_html__( 'From Name', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-                        // 'default_value' => $this->get_from_name_for_list(),
-                        // 'dependency' => 'mailingSegment',
-                    ),
-                    array(
-                        'name'          => 'fromAddress',
-                        'label'         => esc_html__( 'From Address', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-                        // 'default_value' => $this->get_from_name_for_list(),
-                        // 'dependency' => 'mailingSegment',
-                    ),
+//                    array(
+//                        'name'          => 'toName',
+//                        'label'         => esc_html__( 'To', 'gravityformsblueshift' ),
+//                        'type'          => 'text',
+//                        'required'      => true,
+//                        'class'         => 'medium',
+//                        'default_value' => '[%= :prettyTo %]'
+//                    ),
+//                    array(
+//                        'name'          => 'fromName',
+//                        'label'         => esc_html__( 'From Name', 'gravityformsblueshift' ),
+//                        'type'          => 'text',
+//                        'required'      => true,
+//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+//                        // 'default_value' => $this->get_from_name_for_list(),
+//                        // 'dependency' => 'mailingSegment',
+//                    ),
+//                    array(
+//                        'name'          => 'fromAddress',
+//                        'label'         => esc_html__( 'From Address', 'gravityformsblueshift' ),
+//                        'type'          => 'text',
+//                        'required'      => true,
+//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+//                        // 'default_value' => $this->get_from_name_for_list(),
+//                        // 'dependency' => 'mailingSegment',
+//                    ),
                     array(
                         'name'          => 'subjectLine',
                         'label'         => esc_html__( 'Subject', 'gravityformsblueshift' ),
@@ -962,19 +965,19 @@ class GFBlueshift extends GFFeedAddOn {
                             esc_html__( 'Select one of the defined Blueshift mailing types for the mailing.', 'gravityformsblueshift' )
                         ),
                     ),
-                    array(
-                        'name'          => 'mailingDelay',
-                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'small',
-                        // 'dependency'    => array( 'field' => 'mailingType', 'values' => array( '1' ) ),
-                        'tooltip'  => sprintf(
-                            '<h6>%s</h6>%s',
-                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
-                        )
-                    ),
+//                    array(
+//                        'name'          => 'mailingDelay',
+//                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+//                        'type'          => 'text',
+//                        'required'      => true,
+//                        'class'         => 'small',
+//                        // 'dependency'    => array( 'field' => 'mailingType', 'values' => array( '1' ) ),
+//                        'tooltip'  => sprintf(
+//                            '<h6>%s</h6>%s',
+//                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+//                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
+//                        )
+//                    ),
                 ),
             ),
         );
@@ -1046,49 +1049,6 @@ class GFBlueshift extends GFFeedAddOn {
 
         }
         return $segments;
-    }
-
-    /**
-     * Prepare Blueshift Targets for feed field
-     *
-     * @return array
-     */
-    public function targets_for_feed_setting() {
-
-        $targets = array(
-            array(
-                'label' => esc_html__( 'Select a Target', 'gravityformsblueshift' ),
-                'value' => ''
-            )
-        );
-
-        /* If Blueshift API credentials are invalid, return the lists array. */
-        if ( ! $this->initialize_api() ) {
-            return $targets;
-        }
-
-        // Get list ID.
-        $current_feed = $this->get_current_feed();
-        $list_id      = rgpost( '_gaddon_setting_mailingSegment' ) ? rgpost( '_gaddon_setting_mailingSegment' ) : $current_feed['meta']['mailingSegment'];
-
-
-        /* Get available Blueshift targets for $list_id. */
-        //$mc_targets = $this->api->get_target_id_by_list_id($list_id);
-
-        $this->log_debug( __METHOD__ . '(): $mc_targets; ' . print_r($mc_targets, true) );
-
-        /* Add Blueshift lists to array and return it. */
-        foreach ( $mc_targets as $target ) {
-
-            $targets[] = array(
-                'label' => $target->name,
-                'value' => $target->core_target_id
-            );
-
-        }
-
-        return $targets;
-
     }
 
     /**
