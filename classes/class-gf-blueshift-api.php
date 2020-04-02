@@ -5,7 +5,14 @@
  */
 class GF_Blueshift_API {
 
+    /**
+     * One time campaign type
+     */
     const CAMPAIGN_TYPE_ONE_TIME = 'one_time';
+
+    /**
+     * Event triggered campaign type
+     */
     const CAMPAIGN_TYPE_EVENT_TRIGGERED = 'event_triggered';
 
     function __construct($api_url, $api_key = null) {
