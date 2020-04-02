@@ -1007,7 +1007,6 @@ class GFBlueshift extends GFFeedAddOn {
         $settings = $this->trim_conditional_logic_vales( $settings, $form_id );
 
         $is_valid = $this->validate_settings( $sections, $settings );
-        $result   = false;
 
         if ( $is_valid ) {
             $feed_id = $this->save_feed_settings( $feed_id, $form_id, $settings );
