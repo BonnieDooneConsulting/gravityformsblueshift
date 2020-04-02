@@ -1,16 +1,17 @@
 <?php
+
+/**
+ * Class GF_Blueshift_API
+ */
 class GF_Blueshift_API {
 
     const CAMPAIGN_TYPE_ONE_TIME = 'one_time';
     const CAMPAIGN_TYPE_EVENT_TRIGGERED = 'event_triggered';
 
     function __construct($api_url, $api_key = null) {
-
         $this->api_url = $api_url;
         $this->api_key = $api_key;
-
         add_filter('http_request_timeout', array($this, 'wp_timeout_extend'));
-
     }
 
     /**
@@ -52,6 +53,18 @@ class GF_Blueshift_API {
 
         $url = $this->api_url . '/campaigns/' . $campaign_type;
         return $this->_post($url, $campaign_params);
+    }
+
+    /**
+     * Use this API to trigger a campaign
+     *
+     * @see https://developer.blueshift.com/reference#post_api-v1-campaigns-execute
+     * @param $trigger_params
+     * @return array|mixed|WP_Error
+     */
+    function trigger_campaign($trigger_params) {
+        $url = $this->api_url . '/campaigns/execute';
+        return $this->_post($url, $trigger_params);
     }
 
     /**
