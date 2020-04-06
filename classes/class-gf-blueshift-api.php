@@ -15,6 +15,11 @@ class GF_Blueshift_API {
      */
     const CAMPAIGN_TYPE_EVENT_TRIGGERED = 'event_triggered';
 
+    /**
+     * All good things take time
+     */
+    const BLUESHIFT_REQUEST_TIMEOUT = 60;
+
     function __construct($api_url, $api_key = null) {
         $this->api_url = $api_url;
         $this->api_key = $api_key;
@@ -29,7 +34,8 @@ class GF_Blueshift_API {
         return array(
             'headers' => array(
                 'Authorization' => 'Basic ' . base64_encode($this->api_key . ':'),
-            )
+            ),
+            'timeout' => self::BLUESHIFT_REQUEST_TIMEOUT
         );
     }
 
@@ -90,9 +96,38 @@ class GF_Blueshift_API {
             'resource' => [
                 'subject' => $subject,
                 'content' => $content
-            ]
+            ],
+            'template_properties' => array(array(
+                'skip_users_on_blank_products'      => false,
+                'skip_user_on_blank_event_products' =>  true
+            ))
         );
-        $this->_post($url, $template_parameters);
+        return $this->_post($url, $template_parameters);
+    }
+
+    /**
+     * Use this API to update an email template.
+     *
+     * @see https://developer.blueshift.com/reference#put_api-v1-email-templates-template-uuid-json
+     * @param $template_uuid
+     * @param $name
+     * @param $subject
+     * @param $content
+     */
+    function update_email_template($template_uuid, $name, $subject, $content) {
+        $url = $this->api_url . '/email_templates/' . $template_uuid . '.json';
+        $template_parameters = array(
+            'name' => $name,
+            'resource' => [
+                'subject' => $subject,
+                'content' => $content
+            ],
+            'template_properties' => array(array(
+                'skip_users_on_blank_products'      => false,
+                'skip_user_on_blank_event_products' =>  true
+            ))
+        );
+        return $this->_put($url, $template_parameters);
     }
 
     /**
@@ -125,15 +160,12 @@ class GF_Blueshift_API {
         GFCommon::log_debug( __METHOD__ . '():'.$url.' $result  => ' . print_r( $result, true ) );
 
         if(is_wp_error($result)){
-
             return $result;
-
         }elseif($result['response']['code'] == 200){
             /**
              * This is a successful call and will return a php object
              */
             $response_content = json_decode(wp_remote_retrieve_body($result));
-
             return $response_content;
         }else{
             /**
@@ -169,6 +201,33 @@ class GF_Blueshift_API {
             return ($response_content == null OR $response_content == '') ? true : $response_content;
         } else {
             return new WP_Error('request_failed', __('Blueshift POST request failed'));
+        }
+    }
+
+    /**
+     * @param $url
+     * @param $payload
+     * @return array|bool|mixed|WP_Error
+     */
+    private function _put($url, $payload) {
+        $url = esc_url_raw($url);
+
+        $request_data = $this->default_options();
+        $request_data['body'] = json_encode($payload);
+        $request_data['headers']['Content-Type'] = 'application/json';
+        $request_data['method'] = 'PUT';
+
+        $result = wp_remote_request($url, $request_data);
+        GFCommon::log_debug( __METHOD__.'(): '.$url.' => ' . print_r( $result, true) );
+
+        if(is_wp_error($result)){
+            return $result;
+        }elseif($result['response']['code'] == 200){
+            $response_content = json_decode(wp_remote_retrieve_body($result));
+            return ($response_content == null OR $response_content == '') ? true : $response_content;
+        }else{
+            return new WP_Error('request_failed', __('Blueshift Put request failed'));
+
         }
     }
 }

@@ -200,28 +200,28 @@ class GFBlueshift extends GFFeedAddOn {
         // Assemble the email content from the entry values and feed settings
         $template_uuid = $this->create_or_update_template($feed, $entry, $form);
 
-        if (is_numeric($template_uuid)) {
-            gform_update_meta($entry['id'], 'blueshiftaddon_content_id', $template_uuid);
-            $entry['blueshiftaddon_content_id'] = $template_uuid;
+        if ($template_uuid) {
+            gform_update_meta($entry['form_id'], 'blueshiftaddon_template_uuid', $template_uuid);
+            $feed['blueshiftaddon_template_uuid'] = $template_uuid;
         }
 
         // Create a new mailing from the new content
-        $campaign_id = $this->create_mailing_campaign($template_uuid, $feed, $entry, $form);
+        $campaign_uuid = $this->create_mailing_campaign($template_uuid, $feed, $entry, $form);
 
         // Associate the new mailing with the current list
-        if (isset($campaign_id) && is_numeric($campaign_id)) {
-            gform_update_meta($entry['id'], 'blueshiftaddon_mailing_id', $campaign_id);
-            $entry['blueshiftaddon_mailing_id'] = $campaign_id;
+        if (isset($campaign_uuid)) {
+            gform_update_meta($entry['id'], 'blueshiftaddon_campaign_uuid', $campaign_uuid);
+            $entry['blueshiftaddon_campaign_uuid'] = $campaign_uuid;
         }
 
         //send the mailing
-        if ($campaign_id) {
-            $mailing = $this->api->trigger_campaign(array('campaign_uuid' => $campaign_id));
+        if ($campaign_uuid) {
+            $mailing = $this->api->trigger_campaign(array('campaign_uuid' => $campaign_uuid));
         }
 
         GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($mailing, true));
 
-        if (is_numeric($campaign_id)) {
+        if ($campaign_uuid) {
             return true;
         } else {
             return false;
@@ -246,12 +246,17 @@ class GFBlueshift extends GFFeedAddOn {
         //$from_address = $this->get_filtered_field_value('fromAddress',$feed, $entry, $form);
         //$to = $this->get_filtered_field_value('toName', $feed, $entry, $form );
 
-        //create or update the blueshift template
-        //$content_id = $this->api->put_create_content($content_html, $content_plaintext, $content_name, $content_description, $headers)->cid;
-        $template_uuid = $this->api->create_email_template($template_name, $subject, $content_html);
+        //do we need to update or create?
+        $template_uuid = gform_get_meta($entry['form_id'],'blueshiftaddon_template_uuid');
 
-        if($template_uuid) {
-            return $template_uuid;
+        if ($template_uuid) {
+            $template = $this->api->update_email_template($template_uuid, $template_name, $subject, $content_html);
+        } else {
+            $template = $this->api->create_email_template($template_name, $subject, $content_html);
+        }
+
+        if(isset($template)) {
+            return $template->uuid;
         } else {
             return false;
         }
@@ -270,19 +275,19 @@ class GFBlueshift extends GFFeedAddOn {
         $mailing_name = $this->get_filtered_field_value('mailingName',$feed, $entry, $form);
 
         $campaign_params = array(
-            'name' => $mailing_name,
+            'name' => $mailing_name . '-' . strtotime('now'),
             'startdate' => date('c'),
             'segment_uuid' => $feed['meta']['mailingSegment'],
-            'triggers' => array(
+            'triggers' => array(array(
                 'template_uuid' => $template_uuid
-            )
+            ))
         );
 
         //update this to create a blueshift campaign
-        $mailing_id = $this->api->create_campaign($campaign_params);
+        $mailing = $this->api->create_campaign($campaign_params);
 
-        if(is_numeric($mailing_id)) {
-            return $mailing_id;
+        if(!is_wp_error($mailing)) {
+            return $mailing->campaign->uuid;
         } else {
             return false;
         }
@@ -305,12 +310,12 @@ class GFBlueshift extends GFFeedAddOn {
             $template_post_id = $feed['meta']['contentTemplate'];
             $this->log_debug( __METHOD__ . '(): $template_post_id ' . print_r($template_post_id, true) );
             $template_post = get_post($template_post_id);
-            $template_html = $template_post->post_content;
-            // $this->log_debug( __METHOD__ . '(): $template_html ' . print_r($template_html, true) );
-            $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$template_html);
-            // $this->log_debug( __METHOD__ . '(): $combined_content ' . print_r($combined_content, true) );
-            return $combined_content;
-
+            $content = $template_post->post_content;
+            $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
+            //$content = apply_filters('the_content', $combined_content);
+            //$content = str_replace(']]>', ']]&gt;', $content);
+            $content =  preg_replace( '/(^|[^\n\r])[\r\n](?![\n\r])/', '$1 ', $combined_content);
+            return $content;
         }
     }
 
@@ -342,8 +347,8 @@ class GFBlueshift extends GFFeedAddOn {
      * @return array
      */
     public function get_entry_meta( $entry_meta, $form_id ) {
-        $entry_meta['blueshiftaddon_content_id']   = array(
-            'label'                      => 'Blueshift Content ID',
+        $entry_meta['blueshiftaddon_template_uuid']   = array(
+            'label'                      => 'Blueshift Template ID',
             'is_numeric'                 => true,
             'is_default_column'          => true,
             'update_entry_meta_callback' => array( $this, 'update_entry_meta' ),
@@ -352,8 +357,8 @@ class GFBlueshift extends GFFeedAddOn {
             )
         );
 
-        $entry_meta['blueshiftaddon_mailing_id']   = array(
-            'label'                      => 'Blueshift Mailing ID',
+        $entry_meta['blueshiftaddon_campaign_uuid']   = array(
+            'label'                      => 'Blueshift Campaign ID',
             'is_numeric'                 => true,
             'is_default_column'          => true,
             'update_entry_meta_callback' => array( $this, 'update_entry_meta' ),
@@ -406,8 +411,8 @@ class GFBlueshift extends GFFeedAddOn {
         $action = $this->_slug . '_process_feeds';
 
         // Retrieve the content id from the current entry, if available.
-        $content_id = rgar( $entry, 'blueshiftaddon_content_id' );
-        $mailing_id = rgar( $entry, 'blueshiftaddon_mailing_id' );
+        $content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
+        $mailing_id = rgar( $entry, 'blueshiftaddon_campaign_uuid' );
 
         if ( (empty( $content_id ) || empty( $mailing_id )) && rgpost( 'action' ) == $action ) {
             check_admin_referer( 'gforms_save_entry', 'gforms_save_entry' );
@@ -416,8 +421,8 @@ class GFBlueshift extends GFFeedAddOn {
             $entry = $this->maybe_process_feed( $entry, $form );
 
             // Retrieve the content id from the updated entry.
-            $content_id = rgar( $entry, 'blueshiftaddon_content_id' );
-            $mailing_id = rgar( $entry, 'blueshiftaddon_mailing_id' );
+            $content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
+            $mailing_id = rgar( $entry, 'blueshiftaddon_campaign_uuid' );
 
             $html .= esc_html__( 'Feeds Processed.', 'gravityformsblueshift' ) . '</br></br>';
         }
