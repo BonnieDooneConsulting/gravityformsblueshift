@@ -225,10 +225,13 @@ class GF_Blueshift_API {
 
         if(is_wp_error($result)){
             return $result;
-        }elseif($result['response']['code'] == 200){
+        } elseif ($result['response']['code'] == 422){
+            $response_content = json_decode(wp_remote_retrieve_body($result));
+            return new WP_Error('validation_failed', $response_content);
+        } elseif($result['response']['code'] == 200){
             $response_content = json_decode(wp_remote_retrieve_body($result));
             return ($response_content == null OR $response_content == '') ? true : $response_content;
-        }else{
+        } else{
             return new WP_Error('request_failed', __('Blueshift Put request failed'));
 
         }
