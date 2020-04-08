@@ -148,7 +148,7 @@ class GFBlueshift extends GFFeedAddOn {
      * @access protected
      * @var    object $api If initialized, an instance of the Blueshift API library.
      */
-    protected $api = null;
+    public $api = null;
 
     /**
      * Stores an instance of the current mailing object from Blueshift
@@ -201,8 +201,8 @@ class GFBlueshift extends GFFeedAddOn {
         $template_uuid = $this->create_or_update_template($feed, $entry, $form);
 
         if ($template_uuid) {
-            gform_update_meta($entry['form_id'], 'blueshiftaddon_template_uuid', $template_uuid);
-            $feed['blueshiftaddon_template_uuid'] = $template_uuid;
+            update_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', $template_uuid);
+            //$feed['blueshiftaddon_template_uuid'] = $template_uuid;
         }
 
         // Create a new mailing from the new content
@@ -240,7 +240,7 @@ class GFBlueshift extends GFFeedAddOn {
         $subject       = $this->get_filtered_field_value('subjectLine',$feed, $entry, $form);
 
         //do we need to update or create?
-        $template_uuid = gform_get_meta($entry['form_id'],'blueshiftaddon_template_uuid');
+        $template_uuid = get_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', true);
 
         if ($template_uuid) {
             $template = $this->api->update_email_template($template_uuid, $template_name, $subject, $content_html);
@@ -248,7 +248,7 @@ class GFBlueshift extends GFFeedAddOn {
             $template = $this->api->create_email_template($template_name, $subject, $content_html);
         }
 
-        if(isset($template)) {
+        if(!is_wp_error($template)) {
             return $template->uuid;
         } else {
             return false;
@@ -981,7 +981,6 @@ class GFBlueshift extends GFFeedAddOn {
         );
         return $fields;
     }
-
     /**
      * Fork of maybe_save_feed_settings to create new Blueshift custom fields.
      *
@@ -1055,7 +1054,7 @@ class GFBlueshift extends GFFeedAddOn {
      */
     public function get_templates_for_feed_setting() {
 
-        $this->log_debug( __METHOD__ . '(): Query wordpress for gfmctemplate post_type entries' );
+        $this->log_debug( __METHOD__ . '(): Query wordpress for gfblueshifttemplate post_type entries' );
 
         $templates = array(
             array(
@@ -1065,7 +1064,7 @@ class GFBlueshift extends GFFeedAddOn {
         );
 
         $args = array(
-            'post_type' => 'gfmctemplate'
+            'post_type' => 'gfblueshifttemplate'
         );
 
         $query = new WP_Query($args);
@@ -1090,11 +1089,12 @@ class GFBlueshift extends GFFeedAddOn {
 }
 
 add_action('init', 'register_blueshift_post_type', 1);
+
 function register_blueshift_post_type() {
-    $post_type = 'gfmctemplate';
+    $post_type = 'gfblueshifttemplate';
 
     $args = array(
-        'label' => 'Email Templates',
+        'label' => 'Blueshift Templates',
         'exclude_from_search' => true,
         'public' => false,
         'publicly_queryable' => false,
@@ -1102,11 +1102,92 @@ function register_blueshift_post_type() {
         'show_ui' => true,
         'show_in_menu' => true,
         'has_archive' => false,
+        'register_meta_box_cb' => 'blueshift_template_uuid_meta_box'
     );
 
     if(!post_type_exists($post_type)) {
-
         register_post_type($post_type, $args);
-
     }
 }
+
+function blueshift_template_uuid_meta_box() {
+
+    add_meta_box(
+        'blueshift-template-uuid',
+        __( 'Blueshift Template uuid', 'gravityformsblueshift' ),
+        'blueshift_template_uuid_meta_box_callback',
+        'gfblueshifttemplate',
+        'side'
+    );
+}
+
+add_action( 'add_meta_boxes', 'template_uuid_meta_box' );
+
+function blueshift_template_uuid_meta_box_callback( $post ) {
+
+    // Add a nonce field so we can check for it later.
+    wp_nonce_field( 'blueshift_template_uuid_nonce', 'blueshift_template_uuid_nonce' );
+    $value = get_post_meta( $post->ID, '_blueshift_template_uuid', true );
+    echo '<input type="text" style="width:100%" id="blueshift_template_uuid" name="blueshift_template_uuid" disabled value="' . esc_attr( $value ). '">';
+}
+
+function save_blueshift_template_uuid_meta_box_data( $post_id ) {
+
+    // Check if our nonce is set.
+    if ( !isset( $_POST['blueshift_template_uuid_nonce'] ) ) {
+        return;
+    }
+
+    if ( ! wp_verify_nonce( $_POST['blueshift_template_uuid_nonce'], 'blueshift_template_uuid_nonce' ) ) {
+        return;
+    }
+
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    if ( isset( $_POST['post_type'] ) && 'gfblueshifttemplate' == $_POST['post_type'] ) {
+        if ( ! current_user_can( 'edit_page', $post_id ) ) {
+            return;
+        }
+    }
+    else {
+        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+    }
+
+    $content = sanitize_text_field($_POST['content']);
+    $template_name = sanitize_text_field($_POST['post_title']);
+    $subject = 'New Template Validation';
+    $blueshift = GFBlueshift::get_instance();
+    $blueshift->initialize_api();
+
+    if (isset( $_POST['blueshift_template_uuid'] ) ) {
+        //create it in blueshift
+        $template = $blueshift->api->update_email_template(sanitize_text_field($_POST['blueshift_template_uuid']), $template_name, $subject, $content);
+    } else {
+        //update it in blueshift
+        $template = $blueshift->api->create_email_template($template_name, $subject, $content);
+    }
+
+    if (isset($template->uuid)) {
+        update_post_meta( $post_id, '_blueshift_template_uuid', $template->uuid );
+    } elseif (is_wp_error($template)) {
+        //we have validation issues, set an error
+        set_transient("blueshift_template_validation_errors_{$post_id}", json_encode($template->errors, JSON_PRETTY_PRINT), 45);
+    }
+}
+add_action( 'save_post', 'save_blueshift_template_uuid_meta_box_data' );
+
+function blueshift_template_validation_error() {
+    $post = get_post();
+    if ( $error = get_transient( "blueshift_template_validation_errors_{$post->ID}" ) ) { ?>
+        <div class="error">
+            <pre><?php echo $error; ?></pre>
+        </div><?php
+
+        delete_transient("blueshift_template_validation_errors_{$post->ID}");
+    }
+}
+add_action( 'admin_notices', 'blueshift_template_validation_error' );
