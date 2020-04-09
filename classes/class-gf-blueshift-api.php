@@ -81,6 +81,17 @@ class GF_Blueshift_API {
     }
 
     /**
+     * Use to get the list of email templates
+     *
+     * @see https://developer.blueshift.com/reference#get_api-v1-email-templates-json
+     * @return mixed
+     */
+    function list_email_templates() {
+        $url = $this->api_url . '/email_templates.json';
+        return $this->_get($url);
+    }
+
+    /**
      * Use this API to get the list of email templates
      *
      * @see https://developer.blueshift.com/reference#email-template

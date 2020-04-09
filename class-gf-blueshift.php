@@ -305,8 +305,6 @@ class GFBlueshift extends GFFeedAddOn {
             $template_post = get_post($template_post_id);
             $content = $template_post->post_content;
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
-            //$content = apply_filters('the_content', $combined_content);
-            //$content = str_replace(']]>', ']]&gt;', $content);
             $content =  preg_replace( '/(^|[^\n\r])[\r\n](?![\n\r])/', '$1 ', $combined_content);
             return $content;
         }
@@ -404,7 +402,7 @@ class GFBlueshift extends GFFeedAddOn {
         $action = $this->_slug . '_process_feeds';
 
         // Retrieve the content id from the current entry, if available.
-        $content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
+        //$content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
         $mailing_id = rgar( $entry, 'blueshiftaddon_campaign_uuid' );
 
         if ( (empty( $content_id ) || empty( $mailing_id )) && rgpost( 'action' ) == $action ) {
@@ -429,22 +427,16 @@ class GFBlueshift extends GFFeedAddOn {
 
             // Display the content ID and mailing ID.
 
-            $html .= '<p><a href="https://mc2.agora-inc.com/content/preview?contentid=' . $content_id .'" target="_blank">';
-
-            $html .= esc_html__( 'Content ID', 'gravityformsblueshift' ) . ': ' . $content_id;
-
-            $html .= "</a></p>";
+//            $html .= '<p><a href="https://mc2.agora-inc.com/content/preview?contentid=' . $content_id .'" target="_blank">';
+//            $html .= esc_html__( 'Content ID', 'gravityformsblueshift' ) . ': ' . $content_id;
+//            $html .= "</a></p>";
 
             // Link to the content aand mailing in Blueshift
-
-            $html .= '<p><a href="https://mc2.agora-inc.com/mailings/overview?mailingid=' . $mailing_id .'" target="_blank">';
-
-            $html .= esc_html__( 'Mailing ID', 'gravityformsblueshift' ) . ': ' . $mailing_id;
-
-            $html .= "</a></p>";
+//            $html .= '<p><a href="https://mc2.agora-inc.com/mailings/overview?mailingid=' . $mailing_id .'" target="_blank">';
+//            $html .= esc_html__( 'Mailing ID', 'gravityformsblueshift' ) . ': ' . $mailing_id;
+//            $html .= "</a></p>";
 
         }
-
         echo $html;
     }
 
@@ -455,7 +447,7 @@ class GFBlueshift extends GFFeedAddOn {
      */
     public function styles() {
 
-        $min    = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG || isset( $_GET['gform_debug'] ) ? '' : '.min';
+        //$min    = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG || isset( $_GET['gform_debug'] ) ? '' : '.min';
         $styles = array(
             array(
                 'handle'  => 'gform_blueshift_form_settings_css',
@@ -466,9 +458,7 @@ class GFBlueshift extends GFFeedAddOn {
                 ),
             ),
         );
-
         return array_merge( parent::styles(), $styles );
-
     }
 
     public function scripts() {
@@ -486,7 +476,6 @@ class GFBlueshift extends GFFeedAddOn {
                 )
             ),
         );
-
         return array_merge( parent::scripts(), $scripts );
     }
 
@@ -817,11 +806,12 @@ class GFBlueshift extends GFFeedAddOn {
                 'title'  => esc_html__( 'Content Settings', 'gravityformsblueshift' ),
                 'fields' => array(
                     array(
-                        'name'          => 'contentName',
-                        'label'         => esc_html__( 'Name', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        'name'                => 'contentName',
+                        'label'               => esc_html__( 'Name', 'gravityformsblueshift' ),
+                        'type'                => 'text',
+                        'required'            => true,
+                        'class'               => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        'validation_callback' => array($this, 'check_if_template_exists')
                     ),
                     array(
                         'name'          => 'contentDescription',
@@ -981,6 +971,35 @@ class GFBlueshift extends GFFeedAddOn {
         );
         return $fields;
     }
+
+    /**
+     * @param $template_name
+     * @return bool
+     */
+    public function check_if_template_exists($field, $template_name) {
+        $list = $this->api->list_email_templates();
+        $settings = $this->get_posted_settings();
+
+        $current_template_uuid = get_post_meta($settings['contentTemplate'], '_blueshift_template_uuid', true);
+
+        if (is_wp_error($list)) {
+            //we can't check because the api is down, the template name may not be valid?
+            return false;
+        }
+
+        foreach($list->templates as $template) {
+            if ($template->uuid == $current_template_uuid) {
+                continue;
+            }
+
+            if (isset($template->name) && $template->name == $template_name) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * Fork of maybe_save_feed_settings to create new Blueshift custom fields.
      *
