@@ -28,6 +28,7 @@ class GF_Blueshift_API {
 
     /**
      * Set some default headers
+     * 
      * @return array
      */
     function default_options() {
@@ -124,6 +125,8 @@ class GF_Blueshift_API {
      * @param $name
      * @param $subject
      * @param $content
+     *
+     * @return mixed|object
      */
     function update_email_template($template_uuid, $name, $subject, $content) {
         $url = $this->api_url . '/email_templates/' . $template_uuid . '.json';
@@ -244,7 +247,6 @@ class GF_Blueshift_API {
             return ($response_content == null OR $response_content == '') ? true : $response_content;
         } else{
             return new WP_Error('request_failed', __('Blueshift Put request failed'));
-
         }
     }
 }
