@@ -28,7 +28,7 @@ class GF_Blueshift_API {
 
     /**
      * Set some default headers
-     * 
+     *
      * @return array
      */
     function default_options() {

@@ -973,8 +973,11 @@ class GFBlueshift extends GFFeedAddOn {
     }
 
     /**
+     * Check to make sure no other feed and template are using this name
+     *
      * @param $template_name
-     * @return bool
+     *
+     * @return void
      */
     public function check_if_template_exists($field, $template_name) {
         $list = $this->api->list_email_templates();
@@ -984,7 +987,8 @@ class GFBlueshift extends GFFeedAddOn {
 
         if (is_wp_error($list)) {
             //we can't check because the api is down, the template name may not be valid?
-            return false;
+            $this->set_field_error( array('name' => 'contentName'), sprintf(esc_html__( 'The blueshift API is unavailable, please check back later for validation errors', 'gravityformsblueshift')));
+            return;
         }
 
         foreach($list->templates as $template) {
@@ -993,11 +997,11 @@ class GFBlueshift extends GFFeedAddOn {
             }
 
             if (isset($template->name) && $template->name == $template_name) {
-                return false;
+                $this->set_field_error( array('name' => 'contentName'), sprintf(esc_html__( 'This template name is already in use, please use a different one.', 'gravityformsblueshift')));
+                return;
             }
         }
-
-        return true;
+        return;
     }
 
     /**
