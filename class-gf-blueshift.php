@@ -269,7 +269,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         $campaign_params = array(
             'name' => $mailing_name . '-' . strtotime('now'),
-            'startdate' => date('c'),
+            'startdate' => date('c', strtotime(date('c') . '+' . $feed['mailingDelay'] . ' minute')),
             'segment_uuid' => $feed['meta']['mailingSegment'],
             'triggers' => array(array(
                 'template_uuid' => $template_uuid
@@ -446,8 +446,6 @@ class GFBlueshift extends GFFeedAddOn {
      * @return array
      */
     public function styles() {
-
-        //$min    = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG || isset( $_GET['gform_debug'] ) ? '' : '.min';
         $styles = array(
             array(
                 'handle'  => 'gform_blueshift_form_settings_css',
@@ -472,6 +470,18 @@ class GFBlueshift extends GFFeedAddOn {
                 'enqueue'   => array(
                     array(
                         'admin_page' => array( 'plugin_settings' ),
+                    )
+                )
+            ),
+            array(
+                'handle'    => 'admin_feed_schedule_settings',
+                'src'       => $this->get_base_url() . '/js/admin-feed-schedule-settings.js',
+                'version'   => $this->_version,
+                'deps'      => array( 'jquery' ),
+                'in_footer' => false,
+                'enqueue'   => array(
+                    array(
+                        'admin_page' => array( 'form_settings' ),
                     )
                 )
             ),
@@ -820,32 +830,6 @@ class GFBlueshift extends GFFeedAddOn {
                         'required'      => true,
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
-//                    array(
-//                        'name'          => 'toName',
-//                        'label'         => esc_html__( 'To', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium',
-//                        'default_value' => '[%= :prettyTo %]'
-//                    ),
-//                    array(
-//                        'name'          => 'fromName',
-//                        'label'         => esc_html__( 'From Name', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-//                        // 'default_value' => $this->get_from_name_for_list(),
-//                        // 'dependency' => 'mailingSegment',
-//                    ),
-//                    array(
-//                        'name'          => 'fromAddress',
-//                        'label'         => esc_html__( 'From Address', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-//                        // 'default_value' => $this->get_from_name_for_list(),
-//                        // 'dependency' => 'mailingSegment',
-//                    ),
                     array(
                         'name'          => 'subjectLine',
                         'label'         => esc_html__( 'Subject', 'gravityformsblueshift' ),
@@ -911,61 +895,42 @@ class GFBlueshift extends GFFeedAddOn {
                         'required'      => true,
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
-//                    array(
-//                        'name'     => 'campaignType',
-//                        'label'    => esc_html__( 'Campaign', 'gravityformsblueshift' ),
-//                        'type'     => 'select',
-//                        'required' => true,
-//                        'choices'  => array(
-//                            array(
-//                                'label' => esc_html__( 'Daily Issue', 'gravityformsblueshift' ),
-//                                'value' => '5',
-//                            ),
-//                            array(
-//                                'label' => esc_html__( 'No Campaign', 'gravityformsblueshift' ),
-//                                'value' => '1',
-//                            )
-//                        ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Campaign Type', 'gravityformsblueshift' ),
-//                            esc_html__( 'Select one of the defined Blueshift campaign types for the mailing.', 'gravityformsblueshift' )
-//                        ),
-//                    ),
-//                    array(
-//                        'name'     => 'mailingType',
-//                        'label'    => esc_html__( 'Type', 'gravityformsblueshift' ),
-//                        'type'     => 'select',
-//                        'required' => true,
-//                        'choices'  => array(
-//                            array(
-//                                'label' => esc_html__( 'Scheduled', 'gravityformsblueshift' ),
-//                                'value' => '1',
-//                            ),
-//                            array(
-//                                'label' => esc_html__( 'Immediate', 'gravityformsblueshift' ),
-//                                'value' => '5',
-//                            )
-//                        ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Mailing Type', 'gravityformsblueshift' ),
-//                            esc_html__( 'Select one of the defined Blueshift mailing types for the mailing.', 'gravityformsblueshift' )
-//                        ),
-//                    ),
-//                    array(
-//                        'name'          => 'mailingDelay',
-//                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'small',
-//                        // 'dependency'    => array( 'field' => 'mailingType', 'values' => array( '1' ) ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-//                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
-//                        )
-//                    ),
+                    array(
+                        'name'     => 'mailingType',
+                        'label'    => esc_html__( 'Type', 'gravityformsblueshift' ),
+                        'type'     => 'select',
+                        'required' => true,
+                        'class'    => 'mailing-type',
+                        'choices'  => array(
+                            array(
+                                'label' => esc_html__( 'Immediate', 'gravityformsblueshift' ),
+                                'value' => 'immediate',
+                            ),
+                            array(
+                                'label' => esc_html__( 'Scheduled', 'gravityformsblueshift' ),
+                                'value' => 'scheduled',
+                            ),
+                        ),
+                        'tooltip'  => sprintf(
+                            '<h6>%s</h6>%s',
+                            esc_html__( 'Mailing Type', 'gravityformsblueshift' ),
+                            esc_html__( 'Select one of the defined Blueshift mailing types for the mailing.', 'gravityformsblueshift' )
+                        ),
+                    ),
+                    array(
+                        'name'          => 'mailingDelay',
+                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+                        'type'          => 'text',
+                        'required'      => true,
+                        'class'         => 'small mailing-delay',
+                        'hidden'        => true,
+                        'default_value' => 0,
+                        'tooltip'  => sprintf(
+                            '<h6>%s</h6>%s',
+                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
+                        )
+                    ),
                 ),
             ),
         );
