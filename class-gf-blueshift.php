@@ -269,7 +269,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         $campaign_params = array(
             'name' => $mailing_name . '-' . strtotime('now'),
-            'startdate' => date('c', strtotime(date('c') . '+' . $feed['mailingDelay'] . ' minute')),
+            'startdate' => date('c', strtotime(  'now +' . $feed['meta']['mailingDelay'] . ' minute')),
             'segment_uuid' => $feed['meta']['mailingSegment'],
             'triggers' => array(array(
                 'template_uuid' => $template_uuid
