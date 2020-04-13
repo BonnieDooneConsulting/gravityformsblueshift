@@ -148,7 +148,7 @@ class GFBlueshift extends GFFeedAddOn {
      * @access protected
      * @var    object $api If initialized, an instance of the Blueshift API library.
      */
-    protected $api = null;
+    public $api = null;
 
     /**
      * Stores an instance of the current mailing object from Blueshift
@@ -201,8 +201,8 @@ class GFBlueshift extends GFFeedAddOn {
         $template_uuid = $this->create_or_update_template($feed, $entry, $form);
 
         if ($template_uuid) {
-            gform_update_meta($entry['form_id'], 'blueshiftaddon_template_uuid', $template_uuid);
-            $feed['blueshiftaddon_template_uuid'] = $template_uuid;
+            update_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', $template_uuid);
+            //$feed['blueshiftaddon_template_uuid'] = $template_uuid;
         }
 
         // Create a new mailing from the new content
@@ -213,14 +213,10 @@ class GFBlueshift extends GFFeedAddOn {
             $entry['blueshiftaddon_campaign_uuid'] = $campaign_uuid;
         }
 
-        //send the mailing
+        //log the mailing we just kicked off
         if ($campaign_uuid) {
-            $mailing = $this->api->trigger_campaign(array('campaign_uuid' => $campaign_uuid));
-            GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($mailing, true));
-
-            if ($mailing->success) {
-                return true;
-            }
+            GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($campaign_uuid, true));
+            return true;
         }
 
         return false;
@@ -240,7 +236,7 @@ class GFBlueshift extends GFFeedAddOn {
         $subject       = $this->get_filtered_field_value('subjectLine',$feed, $entry, $form);
 
         //do we need to update or create?
-        $template_uuid = gform_get_meta($entry['form_id'],'blueshiftaddon_template_uuid');
+        $template_uuid = get_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', true);
 
         if ($template_uuid) {
             $template = $this->api->update_email_template($template_uuid, $template_name, $subject, $content_html);
@@ -248,7 +244,7 @@ class GFBlueshift extends GFFeedAddOn {
             $template = $this->api->create_email_template($template_name, $subject, $content_html);
         }
 
-        if(isset($template)) {
+        if(!is_wp_error($template)) {
             return $template->uuid;
         } else {
             return false;
@@ -269,7 +265,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         $campaign_params = array(
             'name' => $mailing_name . '-' . strtotime('now'),
-            'startdate' => date('c'),
+            'startdate' => date('c', strtotime(  'now +' . $feed['meta']['mailingDelay'] . ' minute')),
             'segment_uuid' => $feed['meta']['mailingSegment'],
             'triggers' => array(array(
                 'template_uuid' => $template_uuid
@@ -305,8 +301,6 @@ class GFBlueshift extends GFFeedAddOn {
             $template_post = get_post($template_post_id);
             $content = $template_post->post_content;
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
-            //$content = apply_filters('the_content', $combined_content);
-            //$content = str_replace(']]>', ']]&gt;', $content);
             $content =  preg_replace( '/(^|[^\n\r])[\r\n](?![\n\r])/', '$1 ', $combined_content);
             return $content;
         }
@@ -404,7 +398,7 @@ class GFBlueshift extends GFFeedAddOn {
         $action = $this->_slug . '_process_feeds';
 
         // Retrieve the content id from the current entry, if available.
-        $content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
+        //$content_id = rgar( $entry, 'blueshiftaddon_template_uuid' );
         $mailing_id = rgar( $entry, 'blueshiftaddon_campaign_uuid' );
 
         if ( (empty( $content_id ) || empty( $mailing_id )) && rgpost( 'action' ) == $action ) {
@@ -429,22 +423,16 @@ class GFBlueshift extends GFFeedAddOn {
 
             // Display the content ID and mailing ID.
 
-            $html .= '<p><a href="https://mc2.agora-inc.com/content/preview?contentid=' . $content_id .'" target="_blank">';
-
-            $html .= esc_html__( 'Content ID', 'gravityformsblueshift' ) . ': ' . $content_id;
-
-            $html .= "</a></p>";
+//            $html .= '<p><a href="https://mc2.agora-inc.com/content/preview?contentid=' . $content_id .'" target="_blank">';
+//            $html .= esc_html__( 'Content ID', 'gravityformsblueshift' ) . ': ' . $content_id;
+//            $html .= "</a></p>";
 
             // Link to the content aand mailing in Blueshift
-
-            $html .= '<p><a href="https://mc2.agora-inc.com/mailings/overview?mailingid=' . $mailing_id .'" target="_blank">';
-
-            $html .= esc_html__( 'Mailing ID', 'gravityformsblueshift' ) . ': ' . $mailing_id;
-
-            $html .= "</a></p>";
+//            $html .= '<p><a href="https://mc2.agora-inc.com/mailings/overview?mailingid=' . $mailing_id .'" target="_blank">';
+//            $html .= esc_html__( 'Mailing ID', 'gravityformsblueshift' ) . ': ' . $mailing_id;
+//            $html .= "</a></p>";
 
         }
-
         echo $html;
     }
 
@@ -454,8 +442,6 @@ class GFBlueshift extends GFFeedAddOn {
      * @return array
      */
     public function styles() {
-
-        $min    = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG || isset( $_GET['gform_debug'] ) ? '' : '.min';
         $styles = array(
             array(
                 'handle'  => 'gform_blueshift_form_settings_css',
@@ -466,9 +452,7 @@ class GFBlueshift extends GFFeedAddOn {
                 ),
             ),
         );
-
         return array_merge( parent::styles(), $styles );
-
     }
 
     public function scripts() {
@@ -485,8 +469,19 @@ class GFBlueshift extends GFFeedAddOn {
                     )
                 )
             ),
+            array(
+                'handle'    => 'admin_feed_schedule_settings',
+                'src'       => $this->get_base_url() . '/js/admin-feed-schedule-settings.js',
+                'version'   => $this->_version,
+                'deps'      => array( 'jquery' ),
+                'in_footer' => false,
+                'enqueue'   => array(
+                    array(
+                        'admin_page' => array( 'form_settings' ),
+                    )
+                )
+            ),
         );
-
         return array_merge( parent::scripts(), $scripts );
     }
 
@@ -817,11 +812,12 @@ class GFBlueshift extends GFFeedAddOn {
                 'title'  => esc_html__( 'Content Settings', 'gravityformsblueshift' ),
                 'fields' => array(
                     array(
-                        'name'          => 'contentName',
-                        'label'         => esc_html__( 'Name', 'gravityformsblueshift' ),
-                        'type'          => 'text',
-                        'required'      => true,
-                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        'name'                => 'contentName',
+                        'label'               => esc_html__( 'Name', 'gravityformsblueshift' ),
+                        'type'                => 'text',
+                        'required'            => true,
+                        'class'               => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        'validation_callback' => array($this, 'check_if_template_exists')
                     ),
                     array(
                         'name'          => 'contentDescription',
@@ -830,32 +826,6 @@ class GFBlueshift extends GFFeedAddOn {
                         'required'      => true,
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
-//                    array(
-//                        'name'          => 'toName',
-//                        'label'         => esc_html__( 'To', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium',
-//                        'default_value' => '[%= :prettyTo %]'
-//                    ),
-//                    array(
-//                        'name'          => 'fromName',
-//                        'label'         => esc_html__( 'From Name', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-//                        // 'default_value' => $this->get_from_name_for_list(),
-//                        // 'dependency' => 'mailingSegment',
-//                    ),
-//                    array(
-//                        'name'          => 'fromAddress',
-//                        'label'         => esc_html__( 'From Address', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
-//                        // 'default_value' => $this->get_from_name_for_list(),
-//                        // 'dependency' => 'mailingSegment',
-//                    ),
                     array(
                         'name'          => 'subjectLine',
                         'label'         => esc_html__( 'Subject', 'gravityformsblueshift' ),
@@ -921,65 +891,78 @@ class GFBlueshift extends GFFeedAddOn {
                         'required'      => true,
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
-//                    array(
-//                        'name'     => 'campaignType',
-//                        'label'    => esc_html__( 'Campaign', 'gravityformsblueshift' ),
-//                        'type'     => 'select',
-//                        'required' => true,
-//                        'choices'  => array(
-//                            array(
-//                                'label' => esc_html__( 'Daily Issue', 'gravityformsblueshift' ),
-//                                'value' => '5',
-//                            ),
-//                            array(
-//                                'label' => esc_html__( 'No Campaign', 'gravityformsblueshift' ),
-//                                'value' => '1',
-//                            )
-//                        ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Campaign Type', 'gravityformsblueshift' ),
-//                            esc_html__( 'Select one of the defined Blueshift campaign types for the mailing.', 'gravityformsblueshift' )
-//                        ),
-//                    ),
-//                    array(
-//                        'name'     => 'mailingType',
-//                        'label'    => esc_html__( 'Type', 'gravityformsblueshift' ),
-//                        'type'     => 'select',
-//                        'required' => true,
-//                        'choices'  => array(
-//                            array(
-//                                'label' => esc_html__( 'Scheduled', 'gravityformsblueshift' ),
-//                                'value' => '1',
-//                            ),
-//                            array(
-//                                'label' => esc_html__( 'Immediate', 'gravityformsblueshift' ),
-//                                'value' => '5',
-//                            )
-//                        ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Mailing Type', 'gravityformsblueshift' ),
-//                            esc_html__( 'Select one of the defined Blueshift mailing types for the mailing.', 'gravityformsblueshift' )
-//                        ),
-//                    ),
-//                    array(
-//                        'name'          => 'mailingDelay',
-//                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-//                        'type'          => 'text',
-//                        'required'      => true,
-//                        'class'         => 'small',
-//                        // 'dependency'    => array( 'field' => 'mailingType', 'values' => array( '1' ) ),
-//                        'tooltip'  => sprintf(
-//                            '<h6>%s</h6>%s',
-//                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
-//                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
-//                        )
-//                    ),
+                    array(
+                        'name'     => 'mailingType',
+                        'label'    => esc_html__( 'Type', 'gravityformsblueshift' ),
+                        'type'     => 'select',
+                        'required' => true,
+                        'class'    => 'mailing-type',
+                        'choices'  => array(
+                            array(
+                                'label' => esc_html__( 'Immediate', 'gravityformsblueshift' ),
+                                'value' => 'immediate',
+                            ),
+                            array(
+                                'label' => esc_html__( 'Scheduled', 'gravityformsblueshift' ),
+                                'value' => 'scheduled',
+                            ),
+                        ),
+                        'tooltip'  => sprintf(
+                            '<h6>%s</h6>%s',
+                            esc_html__( 'Mailing Type', 'gravityformsblueshift' ),
+                            esc_html__( 'Select one of the defined Blueshift mailing types for the mailing.', 'gravityformsblueshift' )
+                        ),
+                    ),
+                    array(
+                        'name'          => 'mailingDelay',
+                        'label'         => esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+                        'type'          => 'text',
+                        'required'      => true,
+                        'class'         => 'small mailing-delay',
+                        'hidden'        => true,
+                        'default_value' => 0,
+                        'tooltip'  => sprintf(
+                            '<h6>%s</h6>%s',
+                            esc_html__( 'Mailing Delay in Minutes', 'gravityformsblueshift' ),
+                            esc_html__( 'Enter the number of minutes to delay the mailing before sending.', 'gravityformsblueshift' )
+                        )
+                    ),
                 ),
             ),
         );
         return $fields;
+    }
+
+    /**
+     * Check to make sure no other feed and template are using this name
+     *
+     * @param $template_name
+     *
+     * @return void
+     */
+    public function check_if_template_exists($field, $template_name) {
+        $list = $this->api->list_email_templates();
+        $settings = $this->get_posted_settings();
+
+        $current_template_uuid = get_post_meta($settings['contentTemplate'], '_blueshift_template_uuid', true);
+
+        if (is_wp_error($list)) {
+            //we can't check because the api is down, the template name may not be valid?
+            $this->set_field_error( array('name' => 'contentName'), sprintf(esc_html__( 'The blueshift API is unavailable, please check back later for validation errors', 'gravityformsblueshift')));
+            return;
+        }
+
+        foreach($list->templates as $template) {
+            if ($template->uuid == $current_template_uuid) {
+                continue;
+            }
+
+            if (isset($template->name) && $template->name == $template_name) {
+                $this->set_field_error( array('name' => 'contentName'), sprintf(esc_html__( 'This template name is already in use, please use a different one.', 'gravityformsblueshift')));
+                return;
+            }
+        }
+        return;
     }
 
     /**
@@ -1055,7 +1038,7 @@ class GFBlueshift extends GFFeedAddOn {
      */
     public function get_templates_for_feed_setting() {
 
-        $this->log_debug( __METHOD__ . '(): Query wordpress for gfmctemplate post_type entries' );
+        $this->log_debug( __METHOD__ . '(): Query wordpress for gfblueshifttemplate post_type entries' );
 
         $templates = array(
             array(
@@ -1065,7 +1048,7 @@ class GFBlueshift extends GFFeedAddOn {
         );
 
         $args = array(
-            'post_type' => 'gfmctemplate'
+            'post_type' => 'gfblueshifttemplate'
         );
 
         $query = new WP_Query($args);
@@ -1090,11 +1073,12 @@ class GFBlueshift extends GFFeedAddOn {
 }
 
 add_action('init', 'register_blueshift_post_type', 1);
+
 function register_blueshift_post_type() {
-    $post_type = 'gfmctemplate';
+    $post_type = 'gfblueshifttemplate';
 
     $args = array(
-        'label' => 'Email Templates',
+        'label' => 'Blueshift Templates',
         'exclude_from_search' => true,
         'public' => false,
         'publicly_queryable' => false,
@@ -1102,11 +1086,92 @@ function register_blueshift_post_type() {
         'show_ui' => true,
         'show_in_menu' => true,
         'has_archive' => false,
+        'register_meta_box_cb' => 'blueshift_template_uuid_meta_box'
     );
 
     if(!post_type_exists($post_type)) {
-
         register_post_type($post_type, $args);
-
     }
 }
+
+function blueshift_template_uuid_meta_box() {
+
+    add_meta_box(
+        'blueshift-template-uuid',
+        __( 'Blueshift Template uuid', 'gravityformsblueshift' ),
+        'blueshift_template_uuid_meta_box_callback',
+        'gfblueshifttemplate',
+        'side'
+    );
+}
+
+add_action( 'add_meta_boxes', 'template_uuid_meta_box' );
+
+function blueshift_template_uuid_meta_box_callback( $post ) {
+
+    // Add a nonce field so we can check for it later.
+    wp_nonce_field( 'blueshift_template_uuid_nonce', 'blueshift_template_uuid_nonce' );
+    $value = get_post_meta( $post->ID, '_blueshift_template_uuid', true );
+    echo '<input type="text" style="width:100%" id="blueshift_template_uuid" name="blueshift_template_uuid" disabled value="' . esc_attr( $value ). '">';
+}
+
+function save_blueshift_template_uuid_meta_box_data( $post_id ) {
+
+    // Check if our nonce is set.
+    if ( !isset( $_POST['blueshift_template_uuid_nonce'] ) ) {
+        return;
+    }
+
+    if ( ! wp_verify_nonce( $_POST['blueshift_template_uuid_nonce'], 'blueshift_template_uuid_nonce' ) ) {
+        return;
+    }
+
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    if ( isset( $_POST['post_type'] ) && 'gfblueshifttemplate' == $_POST['post_type'] ) {
+        if ( ! current_user_can( 'edit_page', $post_id ) ) {
+            return;
+        }
+    }
+    else {
+        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+    }
+
+    $content = sanitize_text_field($_POST['content']);
+    $template_name = sanitize_text_field($_POST['post_title']);
+    $subject = 'New Template Validation';
+    $blueshift = GFBlueshift::get_instance();
+    $blueshift->initialize_api();
+
+    if (isset( $_POST['blueshift_template_uuid'] ) ) {
+        //create it in blueshift
+        $template = $blueshift->api->update_email_template(sanitize_text_field($_POST['blueshift_template_uuid']), $template_name, $subject, $content);
+    } else {
+        //update it in blueshift
+        $template = $blueshift->api->create_email_template($template_name, $subject, $content);
+    }
+
+    if (isset($template->uuid)) {
+        update_post_meta( $post_id, '_blueshift_template_uuid', $template->uuid );
+    } elseif (is_wp_error($template)) {
+        //we have validation issues, set an error
+        set_transient("blueshift_template_validation_errors_{$post_id}", json_encode($template->errors, JSON_PRETTY_PRINT), 45);
+    }
+}
+add_action( 'save_post', 'save_blueshift_template_uuid_meta_box_data' );
+
+function blueshift_template_validation_error() {
+    $post = get_post();
+    if ( $error = get_transient( "blueshift_template_validation_errors_{$post->ID}" ) ) { ?>
+        <div class="error">
+            <pre><?php echo $error; ?></pre>
+        </div><?php
+
+        delete_transient("blueshift_template_validation_errors_{$post->ID}");
+    }
+}
+add_action( 'admin_notices', 'blueshift_template_validation_error' );
