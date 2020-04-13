@@ -213,14 +213,10 @@ class GFBlueshift extends GFFeedAddOn {
             $entry['blueshiftaddon_campaign_uuid'] = $campaign_uuid;
         }
 
-        //send the mailing
+        //log the mailing we just kicked off
         if ($campaign_uuid) {
-            $mailing = $this->api->trigger_campaign(array('campaign_uuid' => $campaign_uuid));
-            GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($mailing, true));
-
-            if ($mailing->success) {
-                return true;
-            }
+            GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($campaign_uuid, true));
+            return true;
         }
 
         return false;
