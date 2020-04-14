@@ -54,6 +54,30 @@ sure errors don't happen when the feed is processed after form submission.
 
 To create a new Blueshift Feed, select a form in Gravity Forms, and go to `Settings > Blueshift`
 
+#### Feed Settings
+
+Enter in a feed name and select the Blueshift Segment you would like the email to go to when the feed
+is processed.
+
+#### Content Settings
+
+Fill out the required fields and select the template you would like to use when the feed is processed.  
+The `HTML Content` field is what will replace the `[FEEDCONTENT]` tag in the Blueshift template when the template 
+is rendered.
+
+On save, if there are validation issues with the template they will be displayed next to the field that 
+has validation problems:
+
+![](img/how-to/blueshift-feed-name-validation.png)
+
+If errors occur please fix the field(s) and update the feed.
+
+#### Mailing Settings
+
+These fields will be mapped to the campaign in Blueshift. There are two types of mailings that can be used 
+`Scheduled` and `Immediate`, if a `Scheduled` mailing is used, it will simply add the input of the `Mailing Delay in Minutes`
+field to the start time of the campaign.
+
 ## Development Setup
 
 To develop this plugin, all you need is an active WordPress installation with Gravity Forms installed.
