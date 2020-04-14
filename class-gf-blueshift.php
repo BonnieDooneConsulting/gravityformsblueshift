@@ -1112,7 +1112,7 @@ function blueshift_template_uuid_meta_box_callback( $post ) {
     // Add a nonce field so we can check for it later.
     wp_nonce_field( 'blueshift_template_uuid_nonce', 'blueshift_template_uuid_nonce' );
     $value = get_post_meta( $post->ID, '_blueshift_template_uuid', true );
-    echo '<input type="text" style="width:100%" id="blueshift_template_uuid" name="blueshift_template_uuid" disabled value="' . esc_attr( $value ). '">';
+    echo '<input type="text" style="width:100%" id="blueshift_template_uuid" name="blueshift_template_uuid" value="' . esc_attr( $value ). '">';
 }
 
 function save_blueshift_template_uuid_meta_box_data( $post_id ) {
