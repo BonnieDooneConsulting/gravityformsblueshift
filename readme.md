@@ -13,7 +13,44 @@ Requires Gravity Forms Version 1.9.14.26 or higher.
 3. Go to WordPress Dashboard > Forms > Settings > Blueshift.
 4. Enter your Blueshift API credentials (URL and API key).
 
-## Usage Example
+## How to use the Add-On
+
+### Adding Segment uuids
+
+1. Visit the Template you wish to use in the Blueshift interface and copy the uuid from the url.
+![](img/how-to/blueshift-segment-uuid.png)
+2. Go to Go to WordPress Dashboard > Forms > Settings > Blueshift
+3. Scroll down to the `Blueshift Segment Settings` add in a segment name and then paste
+the segment into the `Segment UUID` input field that was copied from the url in Blueshift.
+![](img/how-to/blueshift-segment-settings.png)
+4. Repeat this for each segment that will be needed in the feeds.
+
+### Template Creation
+
+To create a template go to the `Blueshift Templates` custom post type on the wp admin menu.
+Add in a post title and content.  
+
+The `[FEEDCONTENT]` tag should be added into the post content
+where ever you would like the feed content to be placed into the template when it is rendered. 
+
+When the `Blueshift Template` is saved it will send the content and title of to Blueshift, the 
+post `title` will be mapped to the template name in Blueshift and the post `content` will be mapped to 
+the template body.  
+
+If the template creation is successful
+in Blueshift you will see a `uuid` appear in the `Blueshift Template uuid` meta box below the publish button:
+
+![](img/how-to/blueshift-meta-uuid.png)
+
+If validation errors occur when the template is being created/updated in Blueshift, the validation
+errors will be displayed at the top of the post edit screen:
+
+![](img/how-to/blueshift-validation-error.png)
+
+If your Blueshift template contains errors, please update the template and save the post again to make
+sure errors don't happen when the feed is processed after form submission.
+
+### Feed Setup and Creation
 
 To create a new Blueshift Feed, select a form in Gravity Forms, and go to `Settings > Blueshift`
 
@@ -33,10 +70,6 @@ To develop this plugin, all you need is an active WordPress installation with Gr
     * The first proper release -->
 * 0.0.1
     * First build out
-
-## Todo
-
-* Add in the full API and feed processor 
 
 ## Contributing
 
