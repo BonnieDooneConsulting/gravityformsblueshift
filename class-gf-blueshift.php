@@ -1147,7 +1147,7 @@ function save_blueshift_template_uuid_meta_box_data( $post_id ) {
     $blueshift = GFBlueshift::get_instance();
     $blueshift->initialize_api();
 
-    if (isset( $_POST['blueshift_template_uuid'] ) ) {
+    if (!empty($_POST['blueshift_template_uuid']) ) {
         //create it in blueshift
         $template = $blueshift->api->update_email_template(sanitize_text_field($_POST['blueshift_template_uuid']), $template_name, $subject, $content);
     } else {
