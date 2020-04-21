@@ -202,7 +202,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         if ($template_uuid) {
             update_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', $template_uuid);
-            //$feed['blueshiftaddon_template_uuid'] = $template_uuid;
+            $this->log_error(__METHOD__ . '(): Template updated/created successfully. ' . $template_uuid);
         }
 
         // Create a new mailing from the new content
@@ -247,6 +247,7 @@ class GFBlueshift extends GFFeedAddOn {
         if(!is_wp_error($template)) {
             return $template->uuid;
         } else {
+            $this->log_error(__METHOD__ . '(): Template updated/created failure: ' . json_encode($template));
             return false;
         }
     }
@@ -278,6 +279,7 @@ class GFBlueshift extends GFFeedAddOn {
         if(!is_wp_error($mailing)) {
             return $mailing->campaign->uuid;
         } else {
+            $this->log_error(__METHOD__ . '(): Campaign build failed: ' . $mailing);
             return false;
         }
     }
@@ -604,7 +606,7 @@ class GFBlueshift extends GFFeedAddOn {
             return false;
         }
 
-        $this->log_debug( __METHOD__ . "(): Validating API info for {$settings['api_url']} / {$settings['api_key']}." );
+        $this->log_debug( __METHOD__ . "(): Validating API info for {$settings['api_url']}" );
         $blueshift = new GF_Blueshift_API( $settings['api_url'], $settings['api_key']);
 
         try {
