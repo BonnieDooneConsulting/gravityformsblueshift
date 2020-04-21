@@ -202,7 +202,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         if ($template_uuid) {
             update_post_meta($feed['meta']['contentTemplate'], '_blueshift_template_uuid', $template_uuid);
-            $this->log_error(__METHOD__ . '(): Template updated/created successfully. ' . $template_uuid);
+            $this->log_debug(__METHOD__ . '(): Template updated/created successfully. ' . $template_uuid);
         }
 
         // Create a new mailing from the new content
@@ -215,7 +215,7 @@ class GFBlueshift extends GFFeedAddOn {
 
         //log the mailing we just kicked off
         if ($campaign_uuid) {
-            GFCommon::log_debug(__METHOD__ . "(): Mailing " . print_r($campaign_uuid, true));
+            GFCommon::log_debug(__METHOD__ . '(): Mailing ' . $campaign_uuid);
             return true;
         }
 
@@ -304,7 +304,7 @@ class GFBlueshift extends GFFeedAddOn {
             $content = $template_post->post_content;
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
             $content =  preg_replace( '/(^|[^\n\r])[\r\n](?![\n\r])/', '$1 ', $combined_content);
-            return $content;
+            return sanitize_text_field($content);
         }
     }
 
