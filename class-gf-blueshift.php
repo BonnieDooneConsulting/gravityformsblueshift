@@ -264,9 +264,15 @@ class GFBlueshift extends GFFeedAddOn {
     public function create_mailing_campaign($template_uuid, $feed, $entry, $form) {
         $mailing_name = $this->get_filtered_field_value('mailingName',$feed, $entry, $form);
 
+        if ($feed['meta']['mailingType'] === 'immediate') {
+            $start_date = date('c', strtotime(  'now'));
+        } else {
+            $start_date = date('c', strtotime(  'now +' . $feed['meta']['mailingDelay'] . ' minute'));
+        }
+
         $campaign_params = array(
             'name' => $mailing_name . '-' . strtotime('now'),
-            'startdate' => date('c', strtotime(  'now +' . $feed['meta']['mailingDelay'] . ' minute')),
+            'startdate' => $start_date,
             'segment_uuid' => $feed['meta']['mailingSegment'],
             'triggers' => array(array(
                 'template_uuid' => $template_uuid
