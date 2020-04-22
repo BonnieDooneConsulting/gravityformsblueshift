@@ -300,11 +300,12 @@ class GFBlueshift extends GFFeedAddOn {
 
             $template_post_id = $feed['meta']['contentTemplate'];
             $this->log_debug( __METHOD__ . '(): $template_post_id ' . print_r($template_post_id, true) );
-            $template_post = get_post($template_post_id);
-            $content = $template_post->post_content;
+            $content_post = get_post($template_post_id);
+            $content = $content_post->post_content;
+            $content = apply_filters('the_content', $content);
+            $content = str_replace(']]>', ']]&gt;', $content);
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
-            $content =  preg_replace( '/(^|[^\n\r])[\r\n](?![\n\r])/', '$1 ', $combined_content);
-            return sanitize_text_field($content);
+            return $combined_content;
         }
     }
 
@@ -1143,7 +1144,11 @@ function save_blueshift_template_uuid_meta_box_data( $post_id ) {
         }
     }
 
-    $content = sanitize_text_field($_POST['content']);
+    $content_post = get_post($post_id);
+    $content = $content_post->post_content;
+    $content = apply_filters('the_content', $content);
+    $content = str_replace(']]>', ']]&gt;', $content);
+
     $template_name = sanitize_text_field($_POST['post_title']);
     $subject = 'New Template Validation';
     $blueshift = GFBlueshift::get_instance();
