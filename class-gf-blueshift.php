@@ -308,7 +308,6 @@ class GFBlueshift extends GFFeedAddOn {
             $this->log_debug( __METHOD__ . '(): $template_post_id ' . print_r($template_post_id, true) );
             $content_post = get_post($template_post_id);
             $content = $content_post->post_content;
-            $content = apply_filters('the_content', $content);
             $content = str_replace(']]>', ']]&gt;', $content);
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
             return $combined_content;
@@ -1152,7 +1151,6 @@ function save_blueshift_template_uuid_meta_box_data( $post_id ) {
 
     $content_post = get_post($post_id);
     $content = $content_post->post_content;
-    $content = apply_filters('the_content', $content);
     $content = str_replace(']]>', ']]&gt;', $content);
 
     $template_name = sanitize_text_field($_POST['post_title']);
