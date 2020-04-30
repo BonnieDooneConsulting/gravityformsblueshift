@@ -263,6 +263,8 @@ class GFBlueshift extends GFFeedAddOn {
      */
     public function create_mailing_campaign($template_uuid, $feed, $entry, $form) {
         $mailing_name = $this->get_filtered_field_value('mailingName',$feed, $entry, $form);
+        //$from = $this->get_filtered_field_value('fromName',$feed, $entry, $form);
+        //$from_address = $this->get_filtered_field_value('fromAddress',$feed, $entry, $form);
 
         if ($feed['meta']['mailingType'] === 'immediate') {
             $start_date = date('c', strtotime(  'now'));
@@ -308,7 +310,7 @@ class GFBlueshift extends GFFeedAddOn {
             $this->log_debug( __METHOD__ . '(): $template_post_id ' . print_r($template_post_id, true) );
             $content_post = get_post($template_post_id);
             $content = $content_post->post_content;
-            $content = str_replace(']]>', ']]&gt;', $content);
+            //$content = str_replace(']]>', ']]&gt;', $content);
             $combined_content = str_ireplace("[FEEDCONTENT]",$content_html,$content);
             return $combined_content;
         }
@@ -835,6 +837,24 @@ class GFBlueshift extends GFFeedAddOn {
                         'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
                     ),
                     array(
+                        'name'          => 'fromName',
+                        'label'         => esc_html__( 'From Name', 'gravityformsblueshift' ),
+                        'type'          => 'text',
+                        'required'      => true,
+                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        // 'default_value' => $this->get_from_name_for_list(),
+                        // 'dependency' => 'mailingList',
+                    ),
+                    array(
+                        'name'          => 'fromAddress',
+                        'label'         => esc_html__( 'From Address', 'gravityformsblueshift' ),
+                        'type'          => 'text',
+                        'required'      => true,
+                        'class'         => 'medium merge-tag-support mt-position-right mt-hide_all_fields',
+                        // 'default_value' => $this->get_from_name_for_list(),
+                        // 'dependency' => 'mailingList',
+                    ),
+                    array(
                         'name'          => 'subjectLine',
                         'label'         => esc_html__( 'Subject', 'gravityformsblueshift' ),
                         'type'          => 'text',
@@ -1151,7 +1171,7 @@ function save_blueshift_template_uuid_meta_box_data( $post_id ) {
 
     $content_post = get_post($post_id);
     $content = $content_post->post_content;
-    $content = str_replace(']]>', ']]&gt;', $content);
+    //$content = str_replace(']]>', ']]&gt;', $content);
 
     $template_name = sanitize_text_field($_POST['post_title']);
     $subject = 'New Template Validation';
@@ -1186,3 +1206,13 @@ function blueshift_template_validation_error() {
     }
 }
 add_action( 'admin_notices', 'blueshift_template_validation_error' );
+
+function blueshift_disable_visual_editor($can) {
+    global $post;
+
+    if ('gfblueshifttemplate' == $post->post_type) {
+        return false;
+    }
+    return $can;
+}
+add_filter( 'user_can_richedit', 'blueshift_disable_visual_editor' );
