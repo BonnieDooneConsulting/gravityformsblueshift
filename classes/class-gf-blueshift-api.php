@@ -132,10 +132,10 @@ class GF_Blueshift_API {
         $url = $this->api_url . '/email_templates/' . $template_uuid . '.json';
         $template_parameters = array(
             'name' => $name,
-            'resource' => [
+            'resource' => array(
                 'subject' => $subject,
                 'content' => $content
-            ],
+            ),
             'template_properties' => array(array(
                 'skip_users_on_blank_products'      => false,
                 'skip_user_on_blank_event_products' =>  true
