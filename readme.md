@@ -90,10 +90,13 @@ To develop this plugin, all you need is an active WordPress installation with Gr
 
 ## Release History
 
-<!-- * 1.0.0
-    * The first proper release -->
+* 1.0.0
+    * The first proper release
 * 0.0.1
     * First build out
+    
+##Future Features
+* Test send email from wordpress through Blueshift    
 
 ## Contributing
 
