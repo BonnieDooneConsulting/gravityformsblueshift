@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms Blueshift
 Plugin URI: https://oxfordclub.com
 Description: Integrates Gravity Forms with Blueshift, allowing form submissions to be automatically sent as mailings from your Blueshift account.
-Version: 0.0.1
+Version: 1.0.0
 Author: Bonnie Doone Consulting, LLC
 Author URI: https://bonniedooneconsulting.com
 */
